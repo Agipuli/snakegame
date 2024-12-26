@@ -1,0 +1,208 @@
+// Snake game in p5.js with Fence, Restart Button, and Level Buttons
+
+let snake;
+let rez = 20;
+let food;
+let w;
+let h;
+let fence = [];
+let gameOver = false;
+let restartButton;
+let levelButtons = [];
+let currentLevel = 1;
+
+function setup() {
+  createCanvas(400, 400);
+  w = floor(width / rez);
+  h = floor(height / rez);
+  frameRate(5 * currentLevel);
+  snake = new Snake();
+  foodLocation();
+  generateFence();
+
+  restartButton = createButton('Restart');
+  restartButton.position(width / 2 - 40, height + 10);
+  restartButton.mousePressed(restartGame);
+
+  createLevelButtons();
+}
+
+function createLevelButtons() {
+  for (let i = 1; i <= 5; i++) {
+    let button = createButton(`Level ${i}`);
+    button.position(10 + (i - 1) * 60, height + 50);
+    button.mousePressed(() => setLevel(i));
+    levelButtons.push(button);
+  }
+}
+
+function setLevel(level) {
+  currentLevel = level;
+  frameRate(5 * currentLevel);
+  restartGame();
+}
+
+function generateFence() {
+  for (let i = 0; i < w; i++) {
+    fence.push(createVector(i, 0));
+    fence.push(createVector(i, h - 1));
+  }
+  for (let i = 1; i < h - 1; i++) {
+    fence.push(createVector(0, i));
+    fence.push(createVector(w - 1, i));
+  }
+}
+
+function restartGame() {
+  gameOver = false;
+  snake = new Snake();
+  foodLocation();
+  loop();
+}
+
+function foodLocation() {
+  let x, y;
+  do {
+    x = floor(random(w));
+    y = floor(random(h));
+  } while (isFenceOrSnake(x, y));
+  food = createVector(x, y);
+}
+
+function isFenceOrSnake(x, y) {
+  for (let part of fence) {
+    if (part.x === x && part.y === y) return true;
+  }
+  for (let part of snake.body) {
+    if (part.x === x && part.y === y) return true;
+  }
+  return false;
+}
+
+function keyPressed() {
+  if (!gameOver) {
+    if (keyCode === LEFT_ARROW) {
+      snake.setDir(-1, 0);
+    } else if (keyCode === RIGHT_ARROW) {
+      snake.setDir(1, 0);
+    } else if (keyCode === DOWN_ARROW) {
+      snake.setDir(0, 1);
+    } else if (keyCode === UP_ARROW) {
+      snake.setDir(0, -1);
+    }
+  }
+}
+
+function draw() {
+  scale(rez);
+  background(30, 30, 30);
+
+  if (!gameOver) {
+    if (snake.eat(food)) {
+      foodLocation();
+    }
+    snake.update();
+    snake.show();
+  }
+
+  // Draw food
+  noStroke();
+  fill(255, 0, 0);
+  rect(food.x, food.y, 1, 1);
+
+  // Draw fence
+  fill(150);
+  for (let part of fence) {
+    rect(part.x, part.y, 1, 1);
+  }
+
+  if (gameOver) {
+    fill(255);
+    textSize(2);
+    textAlign(CENTER, CENTER);
+    text("Game Over!", w / 2, h / 2);
+    noLoop();
+  }
+}
+
+class Snake {
+  constructor() {
+    this.body = [];
+    this.body[0] = createVector(floor(w / 2), floor(h / 2));
+    this.xdir = 0;
+    this.ydir = 0;
+    this.grow = false;
+  }
+
+  setDir(x, y) {
+    if (this.body.length > 1) {
+      let head = this.body[this.body.length - 1];
+      let next = this.body[this.body.length - 2];
+      if (head.x + x !== next.x || head.y + y !== next.y) {
+        this.xdir = x;
+        this.ydir = y;
+      }
+    } else {
+      this.xdir = x;
+      this.ydir = y;
+    }
+  }
+
+  update() {
+    let head = this.body[this.body.length - 1].copy();
+    head.x += this.xdir;
+    head.y += this.ydir;
+
+    if (this.checkCollision(head)) {
+      gameOver = true;
+      return;
+    }
+
+    this.body.push(head);
+    if (!this.grow) {
+      this.body.shift();
+    }
+    this.grow = false;
+  }
+
+  checkCollision(head) {
+    // Check for collision with itself
+    for (let i = 0; i < this.body.length - 1; i++) {
+      let part = this.body[i];
+      if (part.x === head.x && part.y === head.y) {
+        return true;
+      }
+    }
+
+    // Check for wall collisions
+    if (head.x < 0 || head.x >= w || head.y < 0 || head.y >= h) {
+      return true;
+    }
+
+    // Check for collision with fence
+    for (let part of fence) {
+      if (part.x === head.x && part.y === head.y) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  eat(pos) {
+    let head = this.body[this.body.length - 1];
+    if (head.x === pos.x && head.y === pos.y) {
+      this.grow = true;
+      return true;
+    }
+    return false;
+  }
+
+  show() {
+    for (let i = 0; i < this.body.length; i++) {
+      fill(0, 255, 0);
+      noStroke();
+      rect(this.body[i].x, this.body[i].y, 1, 1);
+    }
+  }
+}
